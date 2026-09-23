@@ -47,7 +47,7 @@ export function LanguageToggle() {
             hrefLang={l}
             aria-current={l === locale ? 'true' : undefined}
             className={cn(
-              'pop-sm inline-flex min-h-11 items-center px-2.5 text-xs font-medium first:rounded-l-md last:rounded-r-md',
+              'pop-sm inline-flex min-h-11 min-w-11 items-center justify-center px-2.5 text-xs font-medium first:rounded-l-md last:rounded-r-md',
               l === locale ? 'bg-accent text-paper' : 'text-ink-muted hover:text-ink',
             )}
           >

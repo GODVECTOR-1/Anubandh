@@ -96,6 +96,8 @@ jobs:
     timeout-minutes: 20
     env:
       SESSION_SECRET: ci-placeholder-not-a-credential-000000
+      # The committed photo; without it check:hero has no backdrop to measure.
+      HERO_IMAGE: /hero.webp
       A11Y_BASE: http://localhost:3100
       BUDGET_BASE: http://localhost:3100
       BASE_URL: http://localhost:3100
@@ -184,7 +186,9 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgres://postgres:postgres@localhost:5432/anubandh
+      # sslmode=disable: the service container serves no TLS, and pg lets the
+      # URL override the ssl option that migrate.ts and lib/db.ts force on.
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/anubandh?sslmode=disable
       SESSION_SECRET: ci-placeholder-not-a-credential-000000
       CRON_SECRET: ci-placeholder-cron-secret
       A11Y_BASE: http://localhost:3100
