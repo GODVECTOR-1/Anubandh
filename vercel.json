@@ -1,0 +1,4 @@
+{
+  "$comment": "Vercel Hobby allows one cron invocation per day, so an hourly schedule is rejected at deploy. Daily still keeps the 24h promise: purge_after is a timestamp, not a bucket, and every expired row goes on the next run. Tighten to '0 * * * *' on Pro.",
+  "crons": [{ "path": "/api/cron/purge", "schedule": "0 3 * * *" }]
+}

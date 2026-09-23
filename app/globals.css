@@ -1,0 +1,686 @@
+@import "tailwindcss";
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Anubandh design tokens — "paper and ink".
+
+   Warm off-white document surface, near-black serif for quoted clause text,
+   geometric sans for UI chrome. A good lawyer's desk, not a dashboard.
+
+   The severity ramp is NOT decorative. Per the frozen contract, severity is a
+   named three-step scale, and per the accessibility rule it must never be
+   carried by colour alone: every use renders rule + icon + text label. The
+   colours below are the third channel, not the only one.
+
+   Every foreground/background pair here clears WCAG AA in BOTH themes, and
+   scripts/check-contrast.ts proves it from this file rather than from a
+   comment. Ratios are deliberately NOT written inline: the last set was
+   measured against white and two of them were below the floor on the warm
+   surfaces actually used.
+   Pure amber (#F59E0B) is deliberately absent: it measures ~2.1:1 on paper and
+   would put the "ask about this" tier below the floor.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  color-scheme: light;
+
+  /* surfaces — deeper and warmer than before: the old paper read as off-white,
+     this reads as paper. */
+  --paper:        #daf6ef;
+  --surface:      #eefbf8;
+  --surface-sunk: #c6ebe1;
+  --rule:         #a5d9ce;
+  --rule-strong:  #74b5a7;
+
+  /* ink */
+  --ink:          #213033;
+  --ink-muted:    #374b4f;
+  --ink-faint:    #384e51;
+
+  /* the named severity scale */
+  --act:          #8f231d;
+  --act-bg:       #faeae7;
+  --ask:          #6e4700;
+  --ask-bg:       #f8efdc;
+  --know:         #374b4f;
+  --know-bg:      #ece5d9;
+
+  /* the two bases for a flag. Authority navy and a muted ink-violet, kept
+     apart from the severity ramp: basis and severity are orthogonal, and a
+     shared ramp would imply that cited means severe. */
+  --statutory:    #1b3557;
+  --asymmetry:    #453c56;
+
+  /* coverage strip weights */
+  --caution:      #6e4700;
+  --caution-bg:   #f8efdc;
+  --reduced:      #8f231d;
+  --reduced-bg:   #faeae7;
+
+  --focus:        #1c2340;
+  /* ── the card ─────────────────────────────────────────────────────────
+     Cards are cream, a shade lighter and a good deal warmer than the mint
+     page, so they read as paper laid on glass rather than as holes cut in it.
+
+     Each token that can appear on a card still has an on-card twin, and .card
+     re-points the token to it for that subtree — so a card needs no special
+     markup: text-ink, text-act and the rest resolve to their on-card values
+     simply by being inside one.
+
+     The twins are written as literals even though most of them equal the page
+     value. They cannot be `var(--ink)` and friends: .card sets --ink to
+     var(--on-card), so a twin pointing back at --ink is a custom-property
+     cycle, and a cycle resolves to the guaranteed-invalid value — every piece
+     of text on every card would fall back to inherited colour at once.
+
+     They equal the page values because cream is LIGHTER than the mint page
+     (relative luminance 0.906 against 0.872), so anything that clears AA on
+     the page clears it on a card with room to spare. Rules and the sunk
+     surface are the exception: those are cream's own, so a mint rule does not
+     cut across a warm card.
+     ─────────────────────────────────────────────────────────────────────── */
+  --card:               #f8f4e6;
+  /* The navy the card's wash is mixed from. Never a flat fill: at full
+     strength it is darker than the ink that sits on it, so it appears only as
+     the low-alpha gradient in .card. */
+  --card-tint:          #181b3a;
+  --on-card:            #213033;
+  --on-card-muted:      #374b4f;
+  --on-card-faint:      #384e51;
+  --on-card-rule:       #e2d8be;
+  --on-card-rule-strong:#c3b494;
+  --on-card-sunk:       #f1ebda;
+  --act-on-card:        #8f231d;
+  --act-bg-on-card:     #faeae7;
+  --ask-on-card:        #6e4700;
+  --ask-bg-on-card:     #f8efdc;
+  --know-on-card:       #374b4f;
+  --know-bg-on-card:    #ece5d9;
+  --statutory-on-card:  #1b3557;
+  --asymmetry-on-card:  #453c56;
+
+  /* Emerald, added on request. Decorative only, and for a sharper reason than
+     plum was: green reads as "safe" or "passed", and this product never tells
+     anyone a clause is fine. It may sit in a gradient or a wash; it may never
+     mark a flag, a coverage figure, or anything a reader could take as a
+     verdict on their document. */
+  --emerald:            #0f766e;
+  --emerald-wash:       #d7f0ea;
+
+  /* ── accent ───────────────────────────────────────────────────────────
+     The page palette: pale mint, sand, dark teal, deep navy, emerald. The mint
+     is --paper and the dark teal is --ink, so colour is in the page itself
+     rather than only in the controls painted on it.
+
+     --accent (deep navy) is text-capable and means nothing: chrome, focus,
+     primary actions, trails, tints. It is close in hue to --statutory, which
+     DOES mean something (cited to a statute), so the two are kept in
+     different roles — the accent is a FILL behind light text, --statutory is
+     never a fill, only text and a small tag.
+
+     --sand is the second wash. It is warm where the page is cool, which is
+     what makes an alternating section read as a different section.
+     ─────────────────────────────────────────────────────────────────────── */
+  --accent:       #1c2340;
+  --accent-bg:    #c3eadf;
+  --sand: #f0dac5;
+  --glow-accent:  0 10px 30px -12px rgb(28 35 64 / 0.32);
+
+
+  /* Secondary text on the inverted closing section. A token rather than an
+     alpha on paper, so the contrast script can measure it like every other
+     pair instead of trusting an opacity nobody checked. */
+  --on-ink-muted: #b9c0ce;
+
+  /* glass. Chrome and flag cards only. 80% surface keeps every measured pair
+     valid: the style guide asks for 10-30% opacity, which is where glass stops
+     clearing 4.5:1 and starts being decoration over legal text. */
+  /* interactive elevation: rim light, depth shadow, colour glow */
+  --rim:          rgb(255 255 255 / 0.60);
+  --shadow-rest:  0 1px 2px rgb(33 48 51 / 0.05);
+  --shadow-lift:  0 12px 32px -14px rgb(33 48 51 / 0.28);
+  --glow-ink:     0 10px 30px -12px rgb(27 53 87 / 0.30);
+  --glow-act:     0 10px 30px -12px rgb(143 35 29 / 0.30);
+  --glow-ask:     0 10px 30px -12px rgb(125 81 0 / 0.28);
+
+  --glass:        rgb(238 251 248 / 0.80);
+  --glass-border: rgb(33 48 51 / 0.08);
+  --glass-blur:   14px;
+}
+
+/* The cream card.
+
+   Frosted, and frosted only because it is light. The previous dark card could
+   not be: a dark glass over the mint page composites to #3b494a, the page
+   bleeds up through it, and ink-faint landed at 3.42:1 with act at 3.84:1.
+   Raising the opacity until those passed left a "glass" at 95%, which is not
+   translucent, so that card was simply opaque and the frost lived on the
+   sticky chrome alone. A cream card has the opposite arithmetic — light over
+   light, with nowhere dark to land — so the same treatment measures clean
+   here. See the note on the backdrop-filter below for what the frost is and
+   is not allowed to be responsible for.
+
+   Two jobs: paint the surface, and re-point every token that can appear on a
+   card to its on-card twin. Because @theme is declared `inline`, text-ink
+   compiles to color: var(--ink) rather than to a fixed value — so overriding
+   --ink here cascades to the entire subtree and a card inverts without one
+   text utility changing anywhere in the app.
+
+   --surface is re-pointed to --card as well, so a nested bg-surface inside a
+   card does not punch a light hole in it. */
+.card {
+  /* Cream glass: a translucent warm surface, a navy wash for depth, and a
+     real frost behind it.
+
+     THE ALPHA CARRIES THE CONTRAST, NOT THE FILTER. axe reads the declared
+     background colour and cannot see through a backdrop-filter, so anything
+     the frost contributes has to be a bonus rather than the thing that makes
+     the text legible. That is not a compromise here the way it was on the
+     navy card this replaces: a light card over a light page has nowhere dark
+     to land, so the composite stays cream whatever shows through. The old
+     rule had the opposite problem — a dark card lifted by the page bleeding
+     up through it, which put ink-faint at 3.42:1 and drove the opacity to 95%
+     until nothing was translucent at all. Inverting the card is what made the
+     glass affordable.
+
+     83% is measured, not chosen, and the hero card is what decided it. Every
+     other card sits over the gradient, which is smooth and light everywhere;
+     that one sits over a PHOTOGRAPH, which has dark regions, so it is the
+     tightest instance of the surface and the only one worth tuning against.
+
+     At 88 it measured 5.80:1 and let a tenth of the backdrop through — a frost
+     nobody could see, for the whole cost of compositing one. At 78 it looked
+     best and measured 4.77:1, which clears AA but leaves 0.27 over the floor
+     on an image whose pixels vary and which someone may well swap. 83 lands at
+     5.32:1 with most of the translucency. check-contrast (44 pairs),
+     check-backdrop and axe all pass at every one of these, so none of them
+     would have caught 78 drifting under; the margin is the argument, not the
+     pass. */
+  background-color: color-mix(in srgb, var(--card) 83%, transparent);
+  /* background-IMAGE, not background, so the colour above survives for axe to
+     read.
+
+     Two layers, and both are needed. The wash alone made the card read as
+     tinted plastic: a flat navy veil over cream is just greige, and greige is
+     what cheap glass looks like. The sheen is the light source — bright at the
+     top-left corner, gone by the middle — and it is the thing that reads as a
+     pane catching a window rather than a rectangle someone tinted.
+
+     The wash starts at 30% rather than at the top edge so most of the card
+     stays cream, and stops at 12%: past roughly there it eats into
+     ink-faint's headroom at the dark corner, which is the tier with the least
+     to give. The sheen only ever lightens, so it costs the dark text nothing. */
+  background-image:
+    linear-gradient(
+      135deg,
+      rgb(255 255 255 / 0.60) 0%,
+      rgb(255 255 255 / 0.10) 38%,
+      rgb(255 255 255 / 0) 62%
+    ),
+    linear-gradient(
+      135deg,
+      transparent 30%,
+      color-mix(in srgb, var(--card-tint) 12%, transparent) 100%
+    );
+  /* No -webkit- twin. Lightning CSS treats the pair as one property and keeps
+     the last, so writing both ships the rule UNFROSTED — see the note on
+     .glass, where that cost two months. */
+  backdrop-filter: blur(14px) saturate(140%);
+  will-change: auto;
+  --surface:      var(--card);
+  --surface-sunk: var(--on-card-sunk);
+  --ink:          var(--on-card);
+  --ink-muted:    var(--on-card-muted);
+  --ink-faint:    var(--on-card-faint);
+  --rule:         var(--on-card-rule);
+  --rule-strong:  var(--on-card-rule-strong);
+  --act:          var(--act-on-card);
+  --act-bg:       var(--act-bg-on-card);
+  --ask:          var(--ask-on-card);
+  --ask-bg:       var(--ask-bg-on-card);
+  --know:         var(--know-on-card);
+  --know-bg:      var(--know-bg-on-card);
+  --statutory:    var(--statutory-on-card);
+  --asymmetry:    var(--asymmetry-on-card);
+  --caution:      var(--ask-on-card);
+  --caution-bg:   var(--ask-bg-on-card);
+  --reduced:      var(--act-on-card);
+  --reduced-bg:   var(--act-bg-on-card);
+  /* --accent and --focus are both the deep navy, and on cream that is exactly
+     what they should be: they had to be lifted only because the card used to
+     BE that navy and a primary button vanished into it. The page values are
+     back, so there is nothing to override.
+
+     The rim is the top-edge highlight that makes the glass look lit from
+     above. On the navy card it had to sit at 0.07 or it became a white line;
+     on cream it can carry the full sheen. */
+  --rim:          rgb(255 255 255 / 0.75);
+}
+
+
+/* The ambient gradient — "Untitled blend".
+
+   Pure CSS, no image. The supplied file turned out to contain exactly one
+   raster: a 256x256 tile used at mix-blend-mode: overlay, opacity 0.030, which
+   is film grain rather than the gradient. The gradient itself is the
+   linear-gradient below, quoted from that file, so there is nothing to
+   download and nothing to go soft when it is stretched across a 4K screen.
+
+   MISTED SKY #DFFBFF - PALE LAGOON #6FD8F2 - CLEAR HANADA #4C5BE0 -
+   NIGHT INDIGO #2A2450.
+
+   The two radial blooms on top are mine: a single linear ramp reads as a flat
+   wash, and they give it the depth a mesh field would have had. They use the
+   same four colours and nothing else. */
+.anb-gradient {
+  background-color: #2A2450;
+  background-image:
+    radial-gradient(60% 45% at 18% 12%, rgb(223 251 255 / 0.85) 0%, rgb(223 251 255 / 0) 60%),
+    radial-gradient(55% 50% at 82% 28%, rgb(111 216 242 / 0.75) 0%, rgb(111 216 242 / 0) 65%),
+    linear-gradient(135deg, #DFFBFF 16.1%, #6FD8F2 39.6%, #4C5BE0 58.4%, #2A2450 84.9%);
+}
+@supports (background-image: linear-gradient(in oklab, red, blue)) {
+  .anb-gradient {
+    background-image:
+      radial-gradient(60% 45% at 18% 12%, rgb(223 251 255 / 0.85) 0%, rgb(223 251 255 / 0) 60%),
+      radial-gradient(55% 50% at 82% 28%, rgb(111 216 242 / 0.75) 0%, rgb(111 216 242 / 0) 65%),
+      linear-gradient(135deg in oklab, #DFFBFF 16.1%, #6FD8F2 39.6%, #4C5BE0 58.4%, #2A2450 84.9%);
+  }
+}
+
+/* The ambient gradient drift.
+
+   translate/scale/rotate only — no background, filter or opacity keyframes.
+   A transform animation runs on the compositor and costs the main thread
+   nothing, which is what lets this run behind a scrolling page. The movement
+   is deliberately almost too slow to catch in the act. */
+@keyframes anb-drift {
+  0%   { transform: translate3d(0, 0, 0) scale(1.06) rotate(0deg); }
+  50%  { transform: translate3d(-2.5%, 1.5%, 0) scale(1.14) rotate(1.2deg); }
+  100% { transform: translate3d(0, 0, 0) scale(1.06) rotate(0deg); }
+}
+.anb-drift {
+  animation: anb-drift 48s ease-in-out infinite;
+  will-change: transform;
+}
+
+
+/* A lighter veil for the landing sections. There the copy sits on its own
+   translucent wash (sand, accent tint), so the wash is already doing the
+   protecting and the full page veil would hold the gradient back twice. */
+.anb-veil-soft {
+  background: color-mix(in srgb, var(--paper) 26%, transparent);
+}
+
+/* Highlighted words from the document.
+
+   There used to be a second pair of rules here for cards. The fill is --ask,
+   which was DARK on the page and LIGHT on a dark card, so light mint text
+   landed on light gold at 1.69:1 and each context had to name its own
+   foreground. Now that cards are cream, --ask is dark in both places and
+   --ink is dark in both places, so the one rule below resolves correctly in
+   either — through the twins .card already re-points. The override was not
+   generalised, it was deleted. */
+.anb-hl {
+  background-color: color-mix(in srgb, var(--ask) 18%, transparent);
+  color: var(--ink);
+  border-radius: 3px;
+}
+.anb-hl-on {
+  background-color: color-mix(in srgb, var(--ask) 32%, transparent);
+}
+
+/* The veil over the ambient gradient.
+
+   Without it the gradient runs from nearly white to deep indigo directly
+   behind running copy, and measurement put 256 runs of text below AA — some at
+   1.00:1, i.e. text exactly the colour of what was behind it. The same answer
+   as the hero photograph: never let the backdrop reach full strength where the
+   words are.
+
+   Below lg the copy spans the full width, so the veil is flat. At lg the
+   content is a centred column and the outer margins have no text in them, so
+   the veil opens up there and the gradient is seen at nearly full strength
+   exactly where it costs nothing. */
+.anb-veil {
+  background: color-mix(in srgb, var(--paper) 84%, transparent);
+}
+@media (min-width: 1024px) {
+  .anb-veil {
+    background: linear-gradient(
+      to right,
+      color-mix(in srgb, var(--paper) 30%, transparent) 0%,
+      color-mix(in srgb, var(--paper) 86%, transparent) 15%,
+      color-mix(in srgb, var(--paper) 86%, transparent) 85%,
+      color-mix(in srgb, var(--paper) 30%, transparent) 100%
+    );
+  }
+}
+
+@theme inline {
+  --color-paper:        var(--paper);
+  --color-surface:      var(--surface);
+  --color-surface-sunk: var(--surface-sunk);
+  --color-rule:         var(--rule);
+  --color-rule-strong:  var(--rule-strong);
+
+  --color-ink:          var(--ink);
+  --color-ink-muted:    var(--ink-muted);
+  --color-ink-faint:    var(--ink-faint);
+
+  --color-act:          var(--act);
+  --color-act-bg:       var(--act-bg);
+  --color-ask:          var(--ask);
+  --color-ask-bg:       var(--ask-bg);
+  --color-know:         var(--know);
+  --color-know-bg:      var(--know-bg);
+
+  --color-statutory:    var(--statutory);
+  --color-asymmetry:    var(--asymmetry);
+  --color-caution:      var(--caution);
+  --color-caution-bg:   var(--caution-bg);
+  --color-reduced:      var(--reduced);
+  --color-reduced-bg:   var(--reduced-bg);
+  --color-focus:        var(--focus);
+  --color-on-ink-muted: var(--on-ink-muted);
+  --color-accent:       var(--accent);
+  --color-accent-bg:    var(--accent-bg);
+  --color-sand: var(--sand);
+  --color-card:         var(--card);
+  --color-on-card:      var(--on-card);
+  --color-emerald:      var(--emerald);
+  --color-emerald-wash: var(--emerald-wash);
+
+  /* Geist for chrome, Bricolage Grotesque for anything quoted FROM the
+     document. The typeface is still the signal; it is now a change of family
+     and weight rather than a change of serif. */
+  --font-sans:  var(--font-geist-sans);
+  --font-quote: var(--font-quote);
+  --font-mono:  var(--font-geist-mono);
+}
+
+/* The page colour lives on html, not body, so the fixed ambient canvas at
+   -z-10 has somewhere to sit: it paints above html's background and below
+   everything in body. Leaving the colour on body would bury it. */
+html {
+  background: var(--paper);
+}
+
+/* See AmbientGradient: the canvas outranks any negative-z backdrop, so the
+   root hands the background over while one is mounted. */
+html[data-ambient] {
+  background: transparent;
+}
+
+/* Nothing may scroll the page sideways.
+
+   Decorative layers that deliberately spill past their box — the hero breakout,
+   the glow around the drop target — are wider than the gutter on a phone, and
+   each one otherwise has to re-derive its own responsive inset. Clipped once,
+   here, at the viewport.
+
+   clip, not hidden: overflow: hidden would make body a scroll container and
+   break every position: sticky in the app. clip does not. */
+html {
+  overflow-x: clip;
+}
+
+body {
+  overflow-x: clip;
+
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Visible focus everywhere. Radix gives us roving tabindex; it does not give us
+   a focus ring that survives a designer's reset. */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Honour the OS setting rather than animating through it. The Timeline scrubber
+   still works — it just snaps instead of springing. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Headings balance their own line breaks. Without this the only way to get a
+   good rag is a hard <br>, which is correct at exactly one viewport width and
+   wrong at all the others. */
+h1, h2, h3 {
+  text-wrap: balance;
+}
+
+/* Body copy avoids orphans where the browser supports it. */
+p {
+  text-wrap: pretty;
+}
+
+/* Quoted document text. Used ONLY for words that came out of the user's file —
+   never for our own explanation, and never for an unvalidated quote. */
+.doc-quote {
+  font-family: var(--font-quote), ui-sans-serif, system-ui, sans-serif;
+  /* Heavier and slightly tighter than the surrounding prose. The weight is
+     the signal now that the serif is gone: Anubandh never writes its own
+     words above 600, so 700 here still reads as "this is quoted". */
+  font-weight: 700;
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  letter-spacing: -0.011em;
+  color: var(--ink);
+  /* 45-75 characters is the comfortable measure. Measured with a real ch probe
+     rather than an em estimate: at 860px, where the hero stacks and the card
+     goes full width, this quote ran to 97 characters. Capped on the class so no
+     surface can drift past it; narrower containers are unaffected. */
+  max-width: 68ch;
+}
+
+
+/* The single landing-hero entrance. One animation, not five: excessive motion
+   is a distraction and a nausea risk, and the reduced-motion rule above
+   collapses this to nothing for anyone who has asked for that. */
+@keyframes anb-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.anb-rise {
+  animation: anb-rise 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ─────────────────────────────── glass ───────────────────────────────
+   Frosted surfaces for chrome and flag cards.
+
+   80% opacity, not the 10-30% the style calls for. Below roughly 70% the text
+   on these cards stops clearing 4.5:1 against whatever happens to be behind
+   them, and "whatever happens to be behind them" is a 3D scene that moves. A
+   legal document is the wrong place to find out what the contrast was this
+   frame. scripts/check-contrast.ts measures the COMPOSITED colour, not the
+   token, so this number is checked rather than asserted.
+
+   backdrop-filter degrades to a near-solid surface where it is unsupported,
+   which is exactly the surface that was there before. Nothing depends on it. */
+.glass {
+  background: var(--glass);
+  /* NO -webkit- twin here, and that is the whole point.
+
+     Writing both declarations made this rule ship UNFROSTED for two months:
+     Lightning CSS treats the pair as one property and keeps the last, so the
+     standard declaration was discarded and only -webkit-backdrop-filter
+     survived — which Chromium does not support (CSS.supports reports false).
+     The result was a rule that looked correct in the source, silently did
+     nothing in the browser, and could not be found by searching for the
+     property name, because the property name was still there.
+
+     Prefix-free is also simply correct now: every engine that supports this
+     at all supports it unprefixed. */
+  backdrop-filter: blur(var(--glass-blur)) saturate(135%);
+  border-color: var(--glass-border);
+}
+
+/* ──────────────────── interactive elevation ────────────────────
+   One system for cards, buttons, segments and the scrubber handle.
+
+   Three parts, and the order matters:
+     rim    an inset highlight on the TOP edge, as if lit from above
+     depth  an OFFSET shadow, never a centred halo. A zero-offset glow is
+            decoration; an offset shadow is depth, and the difference is
+            whether the surface looks lit or looks like it is glowing at you
+     glow   a colour-tinted spill UNDER the element, taking its hue from what
+            the element means: act-on-this glows ink-red, ask glows amber
+
+   The lift is a transform, so nothing around it reflows: hovering a card in a
+   list must not nudge its neighbours. Under prefers-reduced-motion the lift is
+   removed outright rather than merely sped up, because a jumping card is the
+   motion that setting exists to stop. */
+
+.rim {
+  box-shadow: inset 0 1px 0 var(--rim), var(--shadow-rest);
+}
+
+.pop {
+  box-shadow: inset 0 1px 0 var(--rim), var(--shadow-rest);
+  transition:
+    transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 220ms ease;
+}
+
+.pop:hover {
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 0 var(--rim), var(--shadow-lift), var(--glow-ink);
+  border-color: var(--rule-strong);
+}
+
+.pop:active {
+  transform: translateY(0);
+  transition-duration: 80ms;
+}
+
+/* Severity-tinted glow. The card already carries its meaning in a rule, an
+   icon and a label; this just lets the light agree with them. */
+.pop-act:hover  { box-shadow: inset 0 1px 0 var(--rim), var(--shadow-lift), var(--glow-act); }
+.pop-ask:hover  { box-shadow: inset 0 1px 0 var(--rim), var(--shadow-lift), var(--glow-ask); }
+
+/* Buttons get the same language at a smaller amplitude. */
+.pop-sm {
+  transition:
+    transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 180ms ease,
+    background-color 180ms ease;
+}
+
+.pop-sm:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lift), var(--glow-ink);
+}
+
+.pop-sm:active {
+  transform: translateY(0);
+  transition-duration: 70ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pop:hover,
+  .pop-sm:hover,
+  .pop:active,
+  .pop-sm:active {
+    transform: none;
+  }
+}
+
+/* ──────────────────────── the scrubber ────────────────────────
+   Three surfaces at three depths: the track is a channel cut INTO the page
+   (inset shadow), the filled range is something laid into that channel, and
+   the handle sits above both. Reading the depths in that order is what makes
+   a slider feel like a control rather than a coloured bar. */
+
+.slider-track {
+  background: var(--surface-sunk);
+  box-shadow:
+    inset 0 1px 3px rgb(23 19 15 / 0.16),
+    inset 0 -1px 0 var(--rim);
+}
+
+.slider-range {
+  background: linear-gradient(90deg, var(--statutory) 0%, var(--ink) 100%);
+  box-shadow: 0 0 14px -3px var(--statutory);
+}
+
+.slider-thumb {
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  box-shadow:
+    inset 0 1px 0 var(--rim),
+    0 2px 6px rgb(33 48 51 / 0.28);
+  transition:
+    transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* The ring grows from the handle rather than appearing beside it, so the
+   target feels larger on hover without the handle itself changing size. */
+.slider-thumb:hover {
+  transform: scale(1.08);
+  box-shadow:
+    inset 0 1px 0 var(--rim),
+    0 4px 12px rgb(23 19 15 / 0.32),
+    0 0 0 7px rgb(27 53 87 / 0.12);
+}
+
+.slider-thumb:active {
+  transform: scale(1.02);
+  box-shadow:
+    inset 0 1px 0 var(--rim),
+    0 2px 6px rgb(23 19 15 / 0.30),
+    0 0 0 10px rgb(27 53 87 / 0.16);
+}
+
+/* A month boundary on the track: where something in the document changes. */
+.slider-tick {
+  background: var(--ask);
+  box-shadow: 0 0 8px -1px var(--ask);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slider-thumb:hover,
+  .slider-thumb:active {
+    transform: none;
+  }
+}
+
+/* ───────────────────── the extruded mark ─────────────────────
+   preserve-3d is what makes this real: without it the stacked layers collapse
+   to a flat pile and the whole thing becomes a fancy drop shadow. With it, the
+   side of the letter is genuinely visible as the mark turns.
+
+   The rotation is slow and narrow on purpose. A logo that spins is a toy; a
+   logo that drifts a few degrees reads as an object sitting on the page. */
+
+.anb-logo3d {
+  transform-style: preserve-3d;
+  animation: anb-logo-turn 14s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes anb-logo-turn {
+  0%   { transform: rotateY(-26deg) rotateX(9deg); }
+  50%  { transform: rotateY(26deg) rotateX(4deg); }
+  100% { transform: rotateY(-26deg) rotateX(9deg); }
+}
+
+/* Held, not stopped mid-turn: the depth is the point and it survives, the
+   movement is what the setting is asking us to drop. */
+@media (prefers-reduced-motion: reduce) {
+  .anb-logo3d {
+    animation: none;
+    transform: rotateY(-20deg) rotateX(7deg);
+  }
+}

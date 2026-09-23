@@ -1,0 +1,234 @@
+name: CI
+
+# Every gate this project has, on every push and every pull request.
+#
+# The point of the split below is that NOTHING here needs a secret. The app
+# falls back to an in-process store when DATABASE_URL is unset, and the sample
+# documents carry pre-baked analyses, so the whole suite — including the
+# browser gates — runs against a real production build with no database and no
+# Gemini key. A reviewer who clones this repo can run exactly what CI runs.
+#
+# SESSION_SECRET is the one value that must be present, because lib/session.ts
+# refuses to start in production without one. The value below is a literal
+# placeholder for a server that holds nothing; it is not a credential and there
+# is nothing it could unlock.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+# A second push supersedes the first; no point burning minutes on a commit
+# nobody is waiting for any more.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Everything that needs neither a browser nor a server. Fast, so it is the
+  # job that tells you you broke something.
+  static:
+    name: types, lint, unit tests, contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+
+      # Runs first and on its own line: a leaked key is the one failure where
+      # the rest of the results stop mattering.
+      - name: Secret-leak gate
+        run: npm run check:secrets
+
+      # Blocking on PRODUCTION dependencies only, at high and above. Those are
+      # the ones that reach a reader's browser or handle their document —
+      # `unpdf` runs pdf.js over bytes a stranger chose, which is the largest
+      # piece of untrusted input this app touches.
+      #
+      # Dev dependencies are reported but do not fail the run: an advisory in
+      # a test runner cannot reach anyone's contract, and a gate that goes red
+      # for something unreachable is a gate people learn to ignore.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Audit dev dependencies (informational)
+        run: npm audit --audit-level=moderate || true
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Types
+        run: npx tsc --noEmit
+
+      # Two passes, because they need opposite module resolution. The server
+      # modules import `server-only`, which throws unless the react-server
+      # condition is set; react-dom/server refuses to load WITH it. Running
+      # them together is not possible, so they are separate steps rather than
+      # a compromise that quietly skips one.
+      #
+      # Coverage thresholds are enforced on the server pass, over the modules
+      # the unit tests are responsible for. It is a ratchet against regression,
+      # not a target — raise it when the numbers rise, never lower it to make a
+      # red run go away.
+      - name: Unit tests, with coverage thresholds
+        run: npm run test:coverage
+
+      - name: Component rendering tests
+        run: npm run test:components
+
+      - name: Frozen contract, copy and reading level
+        run: npm run check:fixture && npm run check:contrast && npm run check:reading
+
+  # The gates that need a real build and a real browser. Measured against
+  # `next start`, never `next dev`: the dev server does not prefetch, does not
+  # minify, and would make the budget numbers meaningless.
+  browser:
+    name: routes, a11y, contrast over the real backdrop, budget
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SESSION_SECRET: ci-placeholder-not-a-credential-000000
+      A11Y_BASE: http://localhost:3100
+      BUDGET_BASE: http://localhost:3100
+      BASE_URL: http://localhost:3100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: npm run build
+
+      - name: Start the production server
+        run: |
+          npx next start -p 3100 &
+          # A loop rather than a wait-on dependency: this is the whole of what
+          # that package would do here, and a gate suite that installs a
+          # package to poll a port has one more thing that can break.
+          for i in $(seq 1 45); do
+            if curl -sf -o /dev/null http://localhost:3100/; then
+              echo "server up after ${i} attempt(s)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "server never came up on :3100"
+          exit 1
+
+      - name: Every route loads and stays quiet
+        run: npm run check:routes
+
+      - name: axe, touch targets, keyboard, reduced motion
+        run: npm run check:a11y
+
+      # These two photograph the page and score the worst pixel behind each run
+      # of text, so they only mean anything against real rendering.
+      - name: Contrast over the gradient, photo and glass
+        run: npm run check:backdrop
+
+      - name: Contrast over the hero photograph
+        run: npm run check:hero
+
+      - name: Per-route JS over the wire
+        run: npm run check:budget
+
+      # Without DATABASE_URL this asserts everything except the RLS policies and
+      # reports those as skipped rather than passing them by default. The
+      # `database` job below runs the same gate against real Postgres so those
+      # skips are covered rather than merely announced.
+      - name: Backend contract, ownership and pipeline invariants
+        run: npm run check:backend
+
+  # The same backend gate again, against a real Postgres.
+  #
+  # Row level security is the property this project most needs proved, and it
+  # is exactly the one the fallback store cannot demonstrate: an in-process map
+  # has no policies, so "sees nothing" there is true whether or not RLS works.
+  # The gate is honest about that and prints those checks as `skip`. A skip on
+  # the one thing separating one reader's contract from another's is not a
+  # result worth shipping, so this job supplies a database and turns the skips
+  # into assertions.
+  #
+  # A throwaway container, not a Supabase project: nothing here needs Supabase
+  # specifically, only Postgres with the migrations applied.
+  database:
+    name: RLS and ownership against real Postgres
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: anubandh
+        ports: ['5432:5432']
+        # Without this the steps start before Postgres accepts connections and
+        # the migration fails on a race rather than on anything real.
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/anubandh
+      SESSION_SECRET: ci-placeholder-not-a-credential-000000
+      CRON_SECRET: ci-placeholder-cron-secret
+      A11Y_BASE: http://localhost:3100
+      BASE_URL: http://localhost:3100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+
+      - name: Apply migrations
+        run: npm run migrate
+
+      - name: Build
+        run: npm run build
+
+      - name: Start the production server
+        run: |
+          npx next start -p 3100 &
+          for i in $(seq 1 45); do
+            if curl -sf -o /dev/null http://localhost:3100/; then
+              echo "server up after ${i} attempt(s)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "server never came up on :3100"
+          exit 1
+
+      # Same command as the browser job. With DATABASE_URL set it additionally
+      # asserts that a mismatched session sees zero rows in every table, that a
+      # sessionless connection sees nothing, that the purge cascades, and that
+      # a session's delete reaches only its own rows.
+      - name: Backend gate, with RLS asserted rather than skipped
+        run: npm run check:backend
+
+      # A skipped RLS check passing silently is the failure this whole job
+      # exists to prevent, so the absence of the word is itself asserted.
+      - name: Fail if any RLS check was skipped
+        run: |
+          if npm run check:backend 2>&1 | grep -q "skip  4\."; then
+            echo "RLS checks were skipped in the job that exists to run them"
+            exit 1
+          fi
+          echo "RLS checks ran"
