@@ -9,6 +9,12 @@ import { purgeExpired } from '@/lib/db';
  * sentence this route makes true. If it stops running the sentence is false, so
  * a failing purge is a correctness bug, not a chore — hence the non-200 on
  * failure, which is what a cron monitor alerts on.
+ *
+ * Scheduled daily in vercel.json (which cannot hold comments, so the reason
+ * lives here): Vercel Hobby allows one cron invocation per day and rejects an
+ * hourly schedule at deploy. Daily still keeps the 24h promise — purge_after is
+ * a timestamp, not a bucket, and every expired row goes on the next run.
+ * Tighten to '0 * * * *' on Pro.
  */
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
