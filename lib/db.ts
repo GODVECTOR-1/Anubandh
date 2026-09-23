@@ -147,8 +147,50 @@ async function pool(): Promise<Pool> {
  * is transaction-local on purpose: a pooled connection handed to the next
  * request must not still be carrying the last reader's identity.
  */
+/**
+ * Failures of ESTABLISHING a connection, where nothing has been sent yet.
+ *
+ * Only these are retried, because only these are safe to retry: a query that
+ * failed halfway through a transaction may or may not have committed, and
+ * running it again is how a document gets written twice. A connection that was
+ * never made has done nothing at all.
+ *
+ * All fast-failing. A pooled-connection TIMEOUT is deliberately not here: it
+ * has already waited connectionTimeoutMillis, and doing that three times over
+ * turns one slow second into a 24-second upload.
+ *
+ * Seen for real on this project, not imagined: `getaddrinfo ENOTFOUND` on the
+ * Supabase pooler from the development machine, succeeding on the next try.
+ * Before this, that one blip during an upload showed "Something broke on our
+ * side", and during a poll it left a document stranded, never read.
+ */
+export function isTransientConnectError(e: unknown): boolean {
+  const code = (e as { code?: unknown } | null)?.code;
+  if (typeof code === 'string' && ['ENOTFOUND', 'EAI_AGAIN', 'ECONNRESET', 'ECONNREFUSED', 'EPIPE'].includes(code)) {
+    return true;
+  }
+  // The pooler hanging up during the handshake, before any statement ran.
+  return /Connection terminated unexpectedly/i.test(String((e as Error | null)?.message ?? ''));
+}
+
+const CONNECT_ATTEMPTS = 3;
+
+async function connect(): Promise<PoolClient> {
+  const p = await pool();
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await p.connect();
+    } catch (e) {
+      if (attempt >= CONNECT_ATTEMPTS || !isTransientConnectError(e)) throw e;
+      // Short, because DNS and a pooler restart recover in well under a second
+      // or not at all within the lifetime of this request.
+      await new Promise((r) => setTimeout(r, 200 * attempt));
+    }
+  }
+}
+
 async function tx<T>(sessionId: string | null, fn: (c: PoolClient) => Promise<T>): Promise<T> {
-  const client = await (await pool()).connect();
+  const client = await connect();
   try {
     await client.query('begin');
     // Drop the bypass BEFORE anything is read. Supabase connects as `postgres`,

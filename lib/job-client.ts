@@ -2,6 +2,7 @@
 
 import type { Job } from '@/contracts/schema';
 import type { JobUpdate, Scenario } from '@/lib/mock-job';
+import { MAX_POLLS_IN_FLIGHT, pollVerdict } from '@/lib/poll';
 
 /**
  * The real pipeline, in the shape the intake screen was already built for.
@@ -96,14 +97,33 @@ export function runJob(input: JobInput, onUpdate: (job: JobUpdate) => void): () 
     if (stopped) return;
     jobId = created.job_id;
 
+    let inFlight = 0;
+    let lastGood = Date.now();
+
+    /** A poll that did not answer. Only a 404 is final; anything else gets
+     *  the window in lib/poll.ts, because any later poll can still claim and
+     *  run a queued job — asking again IS the recovery. */
+    const failed = (status: number) => {
+      const verdict = pollVerdict(status, Date.now() - lastGood);
+      if (verdict !== 'retry') emitFailure('internal');
+    };
+
     const poll = async () => {
       if (stopped || !jobId) return;
+      // A slow server makes each poll take longer than the interval, and
+      // without this they stack: more requests, on the same three pooled
+      // connections, is how a slow database becomes an unreachable one.
+      if (inFlight >= MAX_POLLS_IN_FLIGHT) return;
+      inFlight++;
       try {
         const res = await fetch('/api/jobs/' + jobId, { cache: 'no-store', signal: controller.signal });
-        if (!res.ok) return emitFailure('internal');
+        if (!res.ok) return failed(res.status);
+        lastGood = Date.now();
         emit(await res.json());
       } catch {
-        /* a dropped poll is not a failed job — the next one answers */
+        if (!stopped) failed(0);
+      } finally {
+        inFlight--;
       }
     };
 

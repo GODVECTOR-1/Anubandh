@@ -108,7 +108,12 @@ export const ERROR_COPY: Record<
   },
   internal: {
     title: 'Something broke on our side',
-    body: 'This is our fault, not your document. Nothing has been kept.',
+    // It used to say "Nothing has been kept", which was only true when the
+    // upload itself failed. When anything after it failed, the document had
+    // already been stored — and the screen told the reader otherwise. The
+    // purge makes this sentence true on every path, so it is the one we can
+    // actually promise.
+    body: 'This is our fault, not your document. Anything you sent is deleted within 24 hours.',
     action: 'retry',
   },
 };
