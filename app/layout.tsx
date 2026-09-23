@@ -29,7 +29,11 @@ export const metadata: Metadata = {
     "Every obligation in your document, traced back to the exact words it came from. Information, not legal advice.",
 };
 
-export default async function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const locale = await getLocale();
   const t = UI[locale];
 
