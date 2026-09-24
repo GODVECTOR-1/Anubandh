@@ -1,4 +1,4 @@
-import type { AnalysisPayload, AskCitation, AskResponse } from '@/contracts/schema';
+import type { AnalysisPayload, AskCitation, AskResponse, GraphNode } from '@/contracts/schema';
 import { describeNode } from '@/lib/describe';
 import { clauseLabel } from '@/lib/clause';
 
@@ -57,9 +57,36 @@ const terms = (q: string): string[] =>
     .split(/\s+/)
     .filter((t) => t.length > 2 && !STOP.has(t));
 
+/**
+ * What the question is about, matched to fields extraction already filled in.
+ *
+ * Word matching alone scored the service bond at ZERO for "How much do I owe if
+ * I leave early?", a question this screen suggests BECAUSE of the bond (see
+ * seedQuestions). The bond says "pay", "payable" and "resignation", never
+ * "owe", "leave" or "early", so it was dropped and the non-compete, whose
+ * plain-language line happens to say "after you leave", answered a question
+ * about money instead.
+ *
+ * The predicates are the ones seedQuestions uses to write those questions, so
+ * a suggested question always reaches the clause it was written from. They
+ * also hold whichever words a contract chose: a Money node is a Money node
+ * whether it says "pay", "remit" or "forfeit". Worth two word matches, so the
+ * clause a question is about outranks one sharing a stray word with it, and
+ * words still order clauses of the same kind.
+ */
+const INTENTS: Array<{ asks: RegExp; fits: (n: GraphNode) => boolean }> = [
+  // Not "much": "How much notice do I give?" is about notice, not money.
+  { asks: /\b(owe|owes|owed|pay|paid|payable|payment|cost|costs|amount|money|fee|fees|penalty|bond|refund|repay)\b/, fits: (n) => !!n.money },
+  { asks: /\b(compet|rival)/, fits: (n) => n.kind === 'Restraint' },
+  { asks: /\b(certificate|relieving|experience)\b/, fits: (n) => n.kind === 'Right' },
+];
+const INTENT_WEIGHT = 2;
+
 function findCitations(analysis: AnalysisPayload, question: string, limit = 2): AskCitation[] {
   const t = terms(question);
-  if (t.length === 0) return [];
+  const wanted = INTENTS.filter((i) => i.asks.test(question.toLowerCase()));
+  // "How much?" is all stop words and still clearly a question about money.
+  if (t.length === 0 && wanted.length === 0) return [];
 
   // The clause HEADING is how people actually name a clause. "How much is the
   // bond" matched nothing until this was widened: the word bond appears only in
@@ -82,7 +109,9 @@ function findCitations(analysis: AnalysisPayload, question: string, limit = 2): 
         ' ' +
         n.kind
       ).toLowerCase();
-      const score = t.reduce((acc, term) => acc + (haystack.includes(term) ? 1 : 0), 0);
+      const score =
+        t.reduce((acc, term) => acc + (haystack.includes(term) ? 1 : 0), 0) +
+        wanted.reduce((acc, i) => acc + (i.fits(n) ? INTENT_WEIGHT : 0), 0);
       return { n, score };
     })
     .filter((x) => x.score > 0)
