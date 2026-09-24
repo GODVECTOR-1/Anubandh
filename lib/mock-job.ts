@@ -1,13 +1,14 @@
 import type { ErrorCode, Job, JobStage } from '@/contracts/schema';
 
 /**
- * The MOCK pipeline. This is what `MOCK=1` replays, and what the intake screen
- * is built against until Antigravity's routes exist.
+ * What the intake screen says while a job runs and when one fails: the four
+ * stages, and every error code with its copy and recovery action. Also the
+ * names of the one-click sample scenarios, which lib/demo.ts serves.
  *
- * It emits real `Job` payloads on the real stage vocabulary, so swapping it for
- * polling `/api/jobs/:id` changes the transport and nothing else. Every failure
- * path the plan names is reachable here, because a screen that has only ever
- * been seen on its happy path is a screen nobody has seen.
+ * The file name is historical. This used to replay a mock pipeline; the
+ * samples now run through the real routes with a pre-baked analysis, and the
+ * failures lib/demo.ts stages keep those screens reachable without a model. A
+ * screen only ever seen on its happy path is a screen nobody has seen.
  */
 
 export type Scenario =

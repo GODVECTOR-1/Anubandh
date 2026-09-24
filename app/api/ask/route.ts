@@ -30,8 +30,9 @@ export const runtime = 'nodejs';
  *  latitude than a written one. */
 const VERDICT = [/\bis void\b/i, /\bare void\b/i, /\bunenforceable\b/i, /the document is silent/i];
 
-/** A question is one Gemini call against an analysis we already paid for, so
- *  the cap is looser than the upload cap and exists for the same reason. */
+/** A question makes no model call: the answer is assembled from an analysis
+ *  already paid for, at the cost of a database read. So the cap is looser than
+ *  the upload cap, and exists so a loop cannot tie up the database through it. */
 const ASKS_PER_HOUR = 40;
 
 export async function POST(request: Request) {

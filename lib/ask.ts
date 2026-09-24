@@ -3,8 +3,9 @@ import { describeNode } from '@/lib/describe';
 import { clauseLabel } from '@/lib/clause';
 
 /**
- * MOCK Ask. The real classifier is a server-side model call owned by the
- * backend; this is what `MOCK=1` replays, and what the UI is built against.
+ * Ask, and the only classifier there is. /api/ask runs it on the server and
+ * the Ask screen runs the same function in the browser first. It makes no
+ * model call: every answer is assembled from spans that were already verified.
  *
  * It is deliberately written to the same `AskResponse` contract, because the
  * advice boundary is not a rendering concern. A backend that answers "should I
@@ -12,10 +13,11 @@ import { clauseLabel } from '@/lib/clause';
  * draw answers, so the outcome enum lives in the contract and both sides are
  * measured against it.
  *
- * This implementation is keyword-based and is NOT the guarantee. The server
- * classifier is authoritative. What it does provide is an instant local
- * ESCALATE, which is worth having: someone typing "I have a court date on
- * Friday" should not wait on a network round trip to see a legal-aid number.
+ * The server's answer is the one that counts: the route enforces the contract's
+ * invariants on top (information cites, advice hands off, no verdict language).
+ * What the browser copy adds is an instant local ESCALATE, which is worth
+ * having: someone typing "I have a court date on Friday" should not wait on a
+ * network round trip to see a legal-aid number.
  */
 
 /* ───────────────────────── escalation ───────────────────────── */

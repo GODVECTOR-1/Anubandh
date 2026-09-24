@@ -3,12 +3,12 @@ import { createHmac } from 'node:crypto';
 import { HAS_DB, withClient } from '@/lib/db';
 
 /**
- * A fixed-window limiter for the two routes that cost money.
+ * A fixed-window limiter for the two anonymous routes that cost something.
  *
- * /api/documents and /api/ask are anonymous and both reach Gemini. Without
- * this, a short loop drains the project's quota and the owner's card, and the
- * service is down for everyone else — which for a submission is a worse
- * outage than any bug in it.
+ * /api/documents reaches Gemini; /api/ask reads the database on every
+ * question. Without this, a short loop drains the project's quota and the
+ * owner's card, or ties up the database, and the service is down for everyone
+ * else — which for a submission is a worse outage than any bug in it.
  *
  * KEYED ON THE NETWORK ADDRESS, NOT THE SESSION. The session id lives in a
  * cookie the caller controls; limiting per session politely asks an abuser to
