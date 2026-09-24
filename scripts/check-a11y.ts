@@ -118,6 +118,19 @@ async function run() {
           );
         }
       }
+
+      // A focusable element inside a link or button is a second tab stop for
+      // one control, and Enter on the inner one goes nowhere. axe does not flag
+      // it inside a link. The home mark had one on every page: Motion gives an
+      // element with whileTap tabindex="0".
+      const nested = await page.evaluate(() =>
+        Array.from(document.querySelectorAll('a[href] [tabindex], button [tabindex], a[href] a[href], a[href] button, button a[href], button button'))
+          .filter((el) => (el as HTMLElement).tabIndex >= 0)
+          .map((el) => el.outerHTML.slice(0, 90)),
+      );
+      nested.length === 0
+        ? pass(label + ' — no focusable element nested in a link or button')
+        : fail(label + ' — ' + nested.length + ' focusable element(s) nested in a link or button: ' + nested[0]);
     }
 
     await context.close();
