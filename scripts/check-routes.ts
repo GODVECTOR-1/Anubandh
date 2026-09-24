@@ -129,7 +129,25 @@ async function run() {
     await ctx.close();
   }
 
-  // The one flow that is not just a page load: pick a sample and let the mock
+  // Two sentences on one screen counting the same thing. The headline once said
+  // 38 under a strip saying 37: it counted a node that failed entailment and
+  // was never shown. On a product whose promise is exact numbers, that is the
+  // bug the reader notices first.
+  {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await page.goto(BASE + '/radar', { waitUntil: 'networkidle' });
+    const counts = await page.evaluate(() => ({
+      strip: document.querySelector('aside summary .sr-only')?.textContent ?? null,
+      headline: /out of (\d+) obligations/.exec(document.body.textContent ?? '')?.[1] ?? null,
+    }));
+    counts.strip && counts.strip === counts.headline
+      ? pass('radar headline and coverage strip agree — ' + counts.strip + ' shown')
+      : fail('radar headline says ' + counts.headline + ' obligations, coverage strip says ' + counts.strip);
+    await ctx.close();
+  }
+
+  // The one flow that is not just a page load: pick a sample and let the
   // pipeline run to completion. It is the path a real upload will take.
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await ctx.newPage();
