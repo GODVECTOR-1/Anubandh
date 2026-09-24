@@ -255,6 +255,9 @@ export function seedQuestions(analysis: AnalysisPayload): string[] {
     if (out.length === 3) break;
   }
 
-  if (out.length < 3) out.push('What notice do I have to give?');
+  // Worded to stay clear of ADVICE_TERMS. It was "What notice do I have to
+  // give?", and "do i have to" got the screen's own suggestion answered with
+  // "What I cannot tell you is what you should do".
+  if (out.length < 3) out.push('What is my notice period?');
   return [...new Set(out)].slice(0, 3);
 }
