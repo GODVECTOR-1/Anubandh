@@ -11,6 +11,7 @@ import {
   ERROR_COPY, STAGE_COPY, STAGE_ORDER, type JobUpdate, type Scenario,
 } from '@/lib/mock-job';
 import { runJob, type JobInput } from '@/lib/job-client';
+import { MAX_BYTES, MIN_TEXT_CHARS, textChars } from '@/lib/limits';
 import { cn } from '@/lib/cn';
 import { useUi } from '@/components/LocaleProvider';
 import { interpolate } from '@/lib/interpolate';
@@ -26,8 +27,6 @@ const SAMPLES = [
   { id: 'scan', label: 'A photographed letter', note: 'Poor scan — shows what partial extraction looks like', scenario: 'low_coverage' as Scenario },
 ];
 
-const MAX_BYTES = 10 * 1024 * 1024;
-
 type Phase = 'idle' | 'running' | 'failed' | 'done';
 
 export function Intake() {
@@ -38,6 +37,7 @@ export function Intake() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [pasting, setPasting] = useState(false);
   const [pasted, setPasted] = useState('');
+  const tooShort = textChars(pasted) < MIN_TEXT_CHARS;
   const [dragging, setDragging] = useState(false);
   const cancelRef = useRef<(() => void) | null>(null);
 
@@ -358,13 +358,22 @@ export function Intake() {
             value={pasted}
             onChange={(e) => setPasted(e.target.value)}
             rows={9}
+            aria-describedby={tooShort ? 'paste-min' : undefined}
             className="mt-2 w-full rounded-lg border border-rule card p-3.5 text-sm text-ink placeholder:text-ink-faint"
             placeholder="9.2 Service bond. The Employee shall pay..."
           />
+          {/* The reason the button is off, stated where it applies. The server
+              refuses the same text anyway, and used to say "no parties, no
+              obligations, no terms" about a clause that had all three. */}
+          {tooShort && (
+            <p id="paste-min" className="mt-1.5 text-xs text-ink-muted">
+              {t.intake.pasteMin(textChars(pasted), MIN_TEXT_CHARS)}
+            </p>
+          )}
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
-              disabled={pasted.trim().length < 40}
+              disabled={tooShort}
               onClick={() => start({ kind: 'text', text: pasted.trim(), label: 'Pasted text' }, 'Pasted text')}
               className="inline-flex min-h-11 items-center rounded-lg bg-accent px-4 text-sm font-medium text-paper disabled:opacity-40"
             >

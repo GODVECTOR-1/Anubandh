@@ -2,6 +2,7 @@ import 'server-only';
 import { createHash } from 'node:crypto';
 import type { DocumentPayload } from '@/contracts/schema';
 import { PipelineError } from '@/lib/pipeline-error';
+import { MAX_BYTES, MIN_TEXT_CHARS, textChars } from '@/lib/limits';
 
 /**
  * Stage 1, NORMALIZE. Bytes in, one canonical text out, plus a route back to
@@ -14,10 +15,8 @@ import { PipelineError } from '@/lib/pipeline-error';
  * exist at once.
  */
 
-/** 10 MB / 40 pages, decided BEFORE any extraction spend. Rejecting a large
- *  file after paying for a model call is the expensive way to say no, and
- *  Intake already states both limits to the reader up front. */
-export const MAX_BYTES = 10 * 1024 * 1024;
+/** 40 pages, decided before any extraction spend, like MAX_BYTES. Intake
+ *  states both limits to the reader up front. */
 export const MAX_PAGES = 40;
 
 export type Normalized = {
@@ -183,7 +182,7 @@ export async function normalizeUpload(
     end: i + 1 < rawPageStarts.length ? toNormalized(rawPageStarts[i + 1]) : text.length,
   }));
 
-  if (text.replace(/\s/g, '').length < 200) throw new PipelineError('not_legal_document');
+  if (textChars(text) < MIN_TEXT_CHARS) throw new PipelineError('not_legal_document');
 
   return {
     text,

@@ -141,6 +141,7 @@ type Ui = {
     chooseFile: string;
     pasteInstead: string;
     pasteLabel: string;
+    pasteMin: (have: number, need: number) => string;
     readThis: string;
     backToUpload: string;
     orTryOurs: string;
@@ -327,6 +328,8 @@ const en: Ui = {
     chooseFile: 'Choose a file',
     pasteInstead: 'Paste text instead',
     pasteLabel: 'Paste the text of your document',
+    pasteMin: (have, need) =>
+      'We need at least ' + need + ' characters, not counting spaces, to find an agreement in it. So far: ' + have + '.',
     readThis: 'Read this',
     backToUpload: 'Back to upload',
     orTryOurs: 'Or try one of ours',
@@ -536,6 +539,8 @@ const hi: Ui = {
     chooseFile: 'फ़ाइल चुनें',
     pasteInstead: 'इसके बजाय पाठ चिपकाएँ',
     pasteLabel: 'अपने दस्तावेज़ का पाठ यहाँ चिपकाएँ',
+    pasteMin: (have, need) =>
+      'अनुबंध पहचानने के लिए कम से कम ' + need + ' अक्षर चाहिए, खाली जगह को छोड़कर। अभी तक: ' + have + '।',
     readThis: 'इसे पढ़ें',
     backToUpload: 'अपलोड पर वापस',
     orTryOurs: 'या हमारा कोई नमूना देखें',
