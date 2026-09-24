@@ -41,6 +41,16 @@ const ADVICE_TERMS = [
   'what would you do', 'is it legal', 'can they sue', 'will i be sued',
 ];
 
+/**
+ * Whole words, plural allowed. Matched as substrings, "fir" (a First
+ * Information Report) was found in firm, first, fired and confirm, and
+ * "warrant" in warranty, so "Can they fire me?" was told to call legal aid
+ * before reading on. "should i" likewise caught "should it".
+ */
+const anyOf = (list: string[]) => new RegExp('\\b(' + list.join('|') + ')s?\\b');
+const ESCALATES = anyOf(ESCALATE_TERMS);
+const ADVISES = anyOf(ADVICE_TERMS);
+
 /* ───────────────────────── retrieval ───────────────────────── */
 
 const STOP = new Set([
@@ -181,7 +191,7 @@ export function ask(analysis: AnalysisPayload, question: string): AskResponse {
   // analysis", and a false positive is the LIKELY path here, so continuing has
   // to arrive somewhere. An empty answer turns the exit into a dead end and
   // strands exactly the reader the exit exists for.
-  if (ESCALATE_TERMS.some((term) => q.includes(term))) {
+  if (ESCALATES.test(q)) {
     return {
       question,
       outcome: 'escalate',
@@ -198,7 +208,7 @@ export function ask(analysis: AnalysisPayload, question: string): AskResponse {
 
   // ADVICE: reframe, then hand off. Never a bare refusal — leading with the
   // refusal teaches the reader that the product dodges, and they stop asking.
-  if (ADVICE_TERMS.some((term) => q.includes(term))) {
+  if (ADVISES.test(q)) {
     const money = analysis.graph.nodes.find((n) => n.money)?.money?.amount_text;
     return {
       question,
