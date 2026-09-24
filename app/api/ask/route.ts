@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { AskResponse } from '@/contracts/schema';
+import { priyaOfferLetter } from '@/fixtures/priya-offer-letter';
 import { getAnalysis, getCurrentAnalysis } from '@/lib/analysis';
 import { ask } from '@/lib/ask';
 import { callerKey, rateLimit } from '@/lib/ratelimit';
@@ -53,10 +54,22 @@ export async function POST(request: Request) {
   if (!question) return reply({ error: 'bad_request' }, 400);
   if (question.length > 2000) return reply({ error: 'bad_request' }, 400);
 
+  // The sample is not in the database. It is what every page renders when
+  // there is no session — the landing page links straight to it — so the Ask
+  // screen shows the sample, offers questions about it, and sends its id. Looked
+  // up in the database, that id matched nothing and every question was told
+  // "There is no document open" while the sample sat on the same screen.
+  //
+  // Resolved by id rather than by falling back: an id this server does not
+  // recognise still gets no_coverage, because answering a question about the
+  // reader's own document from a different document would be worse than no
+  // answer at all.
   const analysis =
-    typeof body.document_id === 'string' && body.document_id
-      ? await getAnalysis(body.document_id)
-      : await getCurrentAnalysis();
+    body.document_id === priyaOfferLetter.document.id
+      ? priyaOfferLetter
+      : typeof body.document_id === 'string' && body.document_id
+        ? await getAnalysis(body.document_id)
+        : await getCurrentAnalysis();
 
   // No analysis is not an error, and it is certainly not a reason to answer
   // from general knowledge. It is `no_coverage`: we have nothing verified.
