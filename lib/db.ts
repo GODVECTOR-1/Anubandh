@@ -192,23 +192,19 @@ async function connect(): Promise<PoolClient> {
 async function tx<T>(sessionId: string | null, fn: (c: PoolClient) => Promise<T>): Promise<T> {
   const client = await connect();
   try {
-    await client.query('begin');
     // Drop the bypass BEFORE anything is read. Supabase connects as `postgres`,
     // which holds rolbypassrls and therefore ignores every policy on every
     // table — FORCE row level security does not cover it. `set local` is
     // transaction-scoped, so a pooled connection handed to the next request
     // does not inherit it.
     //
-    // One statement for both settings, not two: every round trip here is paid
-    // on every read and write the app makes, and against a database on another
-    // continent a round trip is hundreds of milliseconds. set_config('role', …)
-    // is the function form of SET ROLE — the same membership check, the same
-    // transaction scope with is_local = true — which is how PostgREST switches
-    // roles per request for the same reason. The RLS gates in check-backend
-    // are what prove it still takes effect.
-    await client.query("select set_config('role', 'anubandh_app', true), set_config('app.session_id', $1, true)", [
-      sessionId ?? '',
-    ]);
+    // `begin` and the role switch travel as one message: every round trip here
+    // is paid on every read and write the app makes. The literal statement
+    // keeps no parameters, so the simple protocol can carry both, and the role
+    // switch stays the explicit SET that 0002_app_role.sql documents. The
+    // session id is a parameter, never interpolated, so it goes second.
+    await client.query('begin; set local role anubandh_app');
+    await client.query('select set_config($1, $2, true)', ['app.session_id', sessionId ?? '']);
     const out = await fn(client);
     await client.query('commit');
     return out;
