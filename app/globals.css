@@ -395,7 +395,12 @@
      and weight rather than a change of serif. */
   --font-sans:  var(--font-geist-sans);
   --font-quote: var(--font-quote);
-  --font-mono:  var(--font-geist-mono);
+  /* The system's own monospace, not a web font. Geist Mono was preloaded on
+     every page for three runs of text — character offsets and a match method,
+     folded away inside the provenance details — so every visit paid for a font
+     file almost nobody would ever see. Monospace is there to keep digits in
+     columns, which every system face already does. */
+  --font-mono:  ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 /* The page colour lives on html, not body, so the fixed ambient canvas at

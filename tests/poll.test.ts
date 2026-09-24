@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import './helpers/no-db';
-import { pollVerdict, POLL_GIVE_UP_MS } from '@/lib/poll';
+import { pollVerdict, pollDelay, POLL_GIVE_UP_MS, POLL_HIDDEN_MS } from '@/lib/poll';
 import { isTransientConnectError } from '@/lib/db';
 
 /**
@@ -87,4 +87,43 @@ test('odd throwables do not crash the classifier', () => {
   for (const e of [null, undefined, 'a string', 42, {}, { code: 42 }]) {
     assert.equal(isTransientConnectError(e), false);
   }
+});
+
+/* ──────────────────────────── the poll schedule ──────────────────────────── */
+
+test('the first seconds stay responsive, because early stages change quickly', () => {
+  assert.equal(pollDelay(0, false), 1_000);
+  assert.equal(pollDelay(9_999, false), 1_000);
+});
+
+test('the interval widens once the pipeline is into its long model call', () => {
+  assert.equal(pollDelay(10_000, false), 2_000);
+  assert.equal(pollDelay(29_999, false), 2_000);
+  assert.equal(pollDelay(30_000, false), 3_000);
+  assert.equal(pollDelay(89_000, false), 3_000);
+});
+
+test('it never widens past the point a stuck job would go unnoticed', () => {
+  // The give-up window must still see several attempts at the widest interval,
+  // or "retry transient failures" quietly becomes "one attempt, then give up".
+  const widest = Math.max(pollDelay(89_000, false), POLL_HIDDEN_MS);
+  assert.ok(POLL_GIVE_UP_MS / widest >= 5, 'fewer than five attempts fit inside the give-up window');
+});
+
+test('a hidden tab slows right down, whenever it is hidden', () => {
+  for (const elapsed of [0, 5_000, 20_000, 60_000]) {
+    assert.equal(pollDelay(elapsed, true), POLL_HIDDEN_MS);
+  }
+});
+
+test('the schedule costs far fewer requests than one a second', () => {
+  // A 45-second reading, polled on the schedule versus every second.
+  let t = 0;
+  let polls = 0;
+  while (t < 45_000) {
+    t += pollDelay(t, false);
+    polls++;
+  }
+  assert.ok(polls <= 25, polls + ' polls for a 45-second reading');
+  assert.ok(polls < 45 * 0.6, 'saved less than 40% of the requests');
 });

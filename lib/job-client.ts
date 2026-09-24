@@ -2,7 +2,7 @@
 
 import type { Job } from '@/contracts/schema';
 import type { JobUpdate, Scenario } from '@/lib/mock-job';
-import { MAX_POLLS_IN_FLIGHT, pollVerdict } from '@/lib/poll';
+import { MAX_POLLS_IN_FLIGHT, pollDelay, pollVerdict } from '@/lib/poll';
 
 /**
  * The real pipeline, in the shape the intake screen was already built for.
@@ -22,7 +22,6 @@ export type JobInput =
   | { kind: 'file'; file: File }
   | { kind: 'text'; text: string; label: string };
 
-const POLL_MS = 1000;
 /** Past 25 seconds, change the MESSAGE, not the spinner. A spinner that has not
  *  changed in half a minute reads as a hang whether or not it is one. */
 const PATIENCE_MS = 25_000;
@@ -75,7 +74,7 @@ export function runJob(input: JobInput, onUpdate: (job: JobUpdate) => void): () 
 
   const stop = () => {
     stopped = true;
-    if (timer !== null) window.clearInterval(timer);
+    if (timer !== null) window.clearTimeout(timer);
     timer = null;
   };
 
@@ -128,9 +127,17 @@ export function runJob(input: JobInput, onUpdate: (job: JobUpdate) => void): () 
     };
 
     // The driver claims the job and runs the pipeline inside its own request;
-    // the interval reports progress while it does.
+    // the status polls report progress while it does, on a widening schedule
+    // (see pollDelay) rather than a fixed one.
+    const schedule = () => {
+      if (stopped) return;
+      timer = window.setTimeout(() => {
+        void poll();
+        schedule();
+      }, pollDelay(Date.now() - started, document.hidden));
+    };
     void poll();
-    timer = window.setInterval(poll, POLL_MS);
+    schedule();
   })();
 
   return () => {

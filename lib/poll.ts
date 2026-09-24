@@ -25,6 +25,30 @@ export const POLL_GIVE_UP_MS = 30_000;
  *  server that is already slow, which is how three pooled connections run out. */
 export const MAX_POLLS_IN_FLIGHT = 2;
 
+/**
+ * How long to wait before the next status poll.
+ *
+ * A fixed one-second interval spent a request — and a database transaction —
+ * every second for the whole of a reading, most of which is one long model
+ * call during which the answer is always "still running". The early stages
+ * change quickly, so the first ten seconds stay at one second; after that the
+ * interval widens, because nothing on screen can change faster than the
+ * pipeline does.
+ *
+ * A hidden tab slows right down. Nobody is watching the progress bar, and the
+ * pipeline does not depend on it: the work runs inside the one request that
+ * claimed the job, not in these. Coming back to the tab costs at most one
+ * interval of staleness.
+ */
+export const POLL_HIDDEN_MS = 5_000;
+
+export function pollDelay(elapsedMs: number, hidden: boolean): number {
+  if (hidden) return POLL_HIDDEN_MS;
+  if (elapsedMs < 10_000) return 1_000;
+  if (elapsedMs < 30_000) return 2_000;
+  return 3_000;
+}
+
 export type PollVerdict = 'retry' | 'gone' | 'unreachable';
 
 /**

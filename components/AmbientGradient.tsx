@@ -60,8 +60,20 @@ export function AmbientGradient({
         className,
       )}
     >
-      {/* Oversized so the drift never exposes an edge. */}
-      <div className={cn('anb-gradient absolute -inset-[18%]', !reduce && 'anb-drift')} />
+      {/* Oversized so the drift never exposes an edge.
+
+          The drift runs on the landing section only. The fixed placement sits
+          under every app page, and every app page carries frosted cards: a
+          backdrop-filter has to re-blur whatever is behind it each time that
+          changes, so an endless animation underneath meant every card was
+          re-blurred every frame, for as long as the tab stayed open, whether
+          or not anything else moved. Held still, the glass is painted once. */}
+      <div
+        className={cn(
+          'anb-gradient absolute -inset-[18%]',
+          !reduce && placement === 'section' && 'anb-drift',
+        )}
+      />
       {/* Held back where the words are. See .anb-veil. */}
       <div
         className={cn(
