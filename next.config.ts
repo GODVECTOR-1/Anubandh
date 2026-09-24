@@ -48,6 +48,9 @@ const csp = [
 ].join('; ');
 
 const nextConfig: NextConfig = {
+  // No "X-Powered-By: Next.js". Naming the framework on every response tells a
+  // scanner which advisories to try first, and tells a reader nothing.
+  poweredByHeader: false,
   async headers() {
     return [
       {
