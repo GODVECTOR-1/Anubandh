@@ -39,7 +39,7 @@ export const STAGE_COPY: Record<JobStage, { label: string; detail: string }> = {
 /** Every error the plan names, with the words the reader actually sees. */
 export const ERROR_COPY: Record<
   ErrorCode,
-  { title: string; body: string; action: 'retry' | 'reupload' | 'wait' | 'override' | 'none' }
+  { title: string; body: string; action: 'retry' | 'reupload' | 'wait' | 'none' }
 > = {
   response_truncated: {
     title: 'This document was too dense to read in one pass',
@@ -59,7 +59,7 @@ export const ERROR_COPY: Record<
   not_legal_document: {
     title: 'This does not look like a legal document',
     body: 'We could not find the shape of an agreement in it: no parties, no obligations, no terms.',
-    action: 'override',
+    action: 'reupload',
   },
   model_refusal: {
     title: 'The model declined to process this document',

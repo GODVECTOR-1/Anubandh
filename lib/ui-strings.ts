@@ -150,7 +150,6 @@ type Ui = {
     differentFile: string;
     back: string;
     openSampleInstead: string;
-    analyzeAnyway: string;
     done: string;
     openingResults: string;
     foundVerifiedTemplate: string;
@@ -338,7 +337,6 @@ const en: Ui = {
     differentFile: 'Use a different file',
     back: 'Back',
     openSampleInstead: 'Open the sample instead',
-    analyzeAnyway: 'I think this is an employment document — analyze it anyway',
     done: 'Done',
     openingResults: 'Opening your results.',
     foundVerifiedTemplate: '{found} obligations found · {verified} verified so far',
@@ -548,7 +546,6 @@ const hi: Ui = {
     differentFile: 'दूसरी फ़ाइल लें',
     back: 'वापस',
     openSampleInstead: 'इसके बजाय नमूना देखें',
-    analyzeAnyway: 'मुझे लगता है यह रोज़गार का दस्तावेज़ है — फिर भी जाँचें',
     done: 'हो गया',
     openingResults: 'आपके नतीजे खोले जा रहे हैं।',
     foundVerifiedTemplate: '{found} बातें मिलीं · अब तक {verified} जाँची गईं',

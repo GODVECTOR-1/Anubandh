@@ -45,11 +45,16 @@ export function Intake() {
   // seventeen seconds is a screen-reader failure, not progress reporting.
   const [announced, setAnnounced] = useState<string>('');
   const lastStage = useRef<JobStage | null>(null);
+  /** The exact input the current run was started with, so "Try again" can
+   *  run THAT again. It used to load the sample offer letter under the
+   *  reader's own filename instead. */
+  const lastInput = useRef<{ input: JobInput; name: string } | null>(null);
 
   useEffect(() => () => cancelRef.current?.(), []);
 
   const start = useCallback(
     (input: JobInput, name: string) => {
+      lastInput.current = { input, name };
       setFileName(name);
       setPhase('running');
       setJob(null);
@@ -204,23 +209,26 @@ export function Intake() {
           {fileName && <p className="mt-2 text-xs text-ink-faint">{fileName}</p>}
 
           <div className="mt-5 flex flex-wrap gap-2">
-            {/* The override. Cutting shallow mode made this classifier the sole
-                gate on the whole product, and a real employment contract
-                misread as something else is a dead end for the person holding
-                it. One link turns that back into a recoverable mistake. */}
-            {e.action === 'override' && (
-              <button
-                type="button"
-                onClick={() => sample('low_coverage', fileName ?? 'your document')}
-                className="pop-sm inline-flex min-h-11 items-center rounded-lg bg-accent px-4 text-sm font-medium text-paper"
-              >
-                {t.intake.analyzeAnyway}
-              </button>
-            )}
+            {/* "Try again" runs the SAME input again: the reader's own file or
+                text. Both recovery buttons here used to call sample(): retry
+                loaded the sample offer letter and "analyze it anyway" loaded
+                the low-coverage demo, each under the reader's filename. The
+                screen then showed findings quoted from a document they never
+                uploaded, marked "Verified". A failed upload that "worked on
+                the second try" was this.
+
+                "Analyze it anyway" is gone rather than rewired. It existed to
+                overrule a classifier that has since been removed; the one
+                verdict left is "extraction found no obligations", which asking
+                again cannot change. Short text is now stopped at the paste
+                box, where the reason can be stated. */}
             {e.action === 'retry' && (
               <button
                 type="button"
-                onClick={() => sample('success', fileName ?? 'your document')}
+                onClick={() => {
+                  const last = lastInput.current;
+                  if (last) start(last.input, last.name);
+                }}
                 className="pop-sm inline-flex min-h-11 items-center rounded-lg bg-accent px-4 text-sm font-medium text-paper"
               >
                 {t.intake.tryAgain}
