@@ -1,4 +1,9 @@
 import type { NextConfig } from "next";
+import { assertProductionEnv } from "./lib/env-check";
+
+// Refuse to build a production deploy that cannot work, and say why. See
+// lib/env-check.ts — this is the check whose absence cost the first deploy.
+assertProductionEnv();
 
 /**
  * Response headers, because the defaults leave the browser's own defences off.
