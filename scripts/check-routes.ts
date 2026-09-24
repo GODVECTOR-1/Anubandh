@@ -164,6 +164,33 @@ async function run() {
     : fail('upload flow — landed=' + landed + ' errors=' + JSON.stringify(flowErrors));
   await ctx.close();
 
+  // "Try again" must send the reader's own text again. It used to load the
+  // sample offer letter under their filename, so a failed upload "worked on
+  // the second try" and showed findings quoted from a document they never
+  // sent. Both POSTs are answered here with the failure the reader actually
+  // met, so this needs no database and no model.
+  {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    const posts: string[] = [];
+    await page.route('**/api/documents', (route) => {
+      posts.push(route.request().postDataBuffer()?.toString('utf8') ?? '');
+      return route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'internal' }) });
+    });
+    const mine = ('MY OWN CLAUSE. ' + 'The Employee shall give sixty days written notice before resigning. '.repeat(4)).trim();
+    await page.goto(BASE + '/upload', { waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: /^paste text instead$/i }).click();
+    await page.locator('#paste').fill(mine);
+    await page.getByRole('button', { name: /^read this$/i }).click();
+    await page.getByRole('button', { name: /^try again$/i }).click();
+    await page.waitForTimeout(1000);
+    const retry = posts[1] ?? '';
+    posts.length === 2 && retry.includes(mine) && !retry.includes('name="scenario"')
+      ? pass('try again — resends the reader\'s own text, not a sample')
+      : fail('try again — ' + posts.length + ' upload(s); the retry sent ' + (retry.match(/name="(\w+)"/g) ?? []).join(', '));
+    await ctx.close();
+  }
+
   // The PDF route is the only other thing that produces a file.
   const api = await browser.newContext();
   const apiPage = await api.newPage();
