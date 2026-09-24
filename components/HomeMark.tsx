@@ -20,14 +20,18 @@ export function HomeMark() {
 
   return (
     <motion.span
-      className="group inline-flex items-baseline gap-2"
+      // The press is CSS, not whileTap. Motion gives any element with a press
+      // gesture tabindex="0" so the keyboard can reach it, which inside this
+      // link made a second, dead tab stop on every page: Enter on it played
+      // the tap and went nowhere. `scale` is its own property, so it composes
+      // with the translate Motion writes to `transform`.
+      className="group inline-flex items-baseline gap-2 transition-[scale] duration-150 motion-safe:active:scale-[0.97]"
       // No entrance under reduced motion: initial={false} makes it render in
       // its final position rather than animating from anywhere.
       initial={reduce ? false : { opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
       whileHover={reduce ? undefined : { y: -2 }}
-      whileTap={reduce ? undefined : { scale: 0.97 }}
     >
       <span className="text-lg font-semibold tracking-tight text-ink sm:text-xl">Anubandh</span>
       {/* Colour, not opacity. opacity-80 on --ink-faint drops it under 4.5:1 —
