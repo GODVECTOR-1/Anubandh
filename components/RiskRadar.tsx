@@ -44,8 +44,10 @@ export async function RiskRadar({ analysis }: { analysis: AnalysisPayload }) {
         <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
           <PageHeadingRoll>{t.title(total)}</PageHeadingRoll>
         </h1>
+        {/* rendered, not verified: the coverage strip above counts what is
+            shown, and a verified node can still fail entailment and be dropped. */}
         <p className="mt-1.5 text-sm text-ink-muted">
-          {t.subtitle(coverage.verified)}
+          {t.subtitle(coverage.rendered)}
         </p>
 
         {/* Stated once, here. Repeated verbatim on eight cards it becomes
