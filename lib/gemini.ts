@@ -35,8 +35,23 @@ import { PipelineError } from '@/lib/pipeline-error';
  * So a transient failure moves to the NEXT model rather than asking the same
  * one again. Retrying a model that has no quota left is just waiting.
  * GEMINI_MODEL overrides the list, comma-separated, best first.
+ *
+ * Six deep, because three was not enough. Measured on 2026-09-24 during a
+ * demand spike: flash-latest, 3.1-flash-lite and flash-lite-latest all 503,
+ * 3.6-flash took 58s to say "ok", 3.5-flash 12s and 3-flash-preview 27s. With
+ * only the first three in the list, both attempts of a real upload spent their
+ * whole budget on 503s and one slow model, and the reader was told we stopped
+ * at ninety seconds. A 503 costs about a second, so a longer list is cheap to
+ * walk; ordered so the slowest responder is asked after the quick ones.
  */
-const DEFAULT_MODELS = ['gemini-flash-latest', 'gemini-3.6-flash', 'gemini-3.1-flash-lite'];
+const DEFAULT_MODELS = [
+  'gemini-flash-latest',
+  'gemini-3.5-flash',
+  'gemini-3-flash-preview',
+  'gemini-3.1-flash-lite',
+  'gemini-flash-lite-latest',
+  'gemini-3.6-flash',
+];
 
 /** `||` and not `??`: the env template ships `GEMINI_MODEL=` with no value, and
  *  `??` keeps an empty string — which split and filtered down to an empty list
@@ -56,8 +71,12 @@ const MIN_ATTEMPT_MS = 4_000;
  *  succeeds. This is NOT the retry the spec forbids: that one is re-rolling a
  *  response that failed VALIDATION until it happens to pass, which launders a
  *  bad answer into a good-looking one. Retrying a request that was never
- *  served launders nothing. */
-const MAX_ATTEMPTS = 6;
+ *  served launders nothing.
+ *
+ *  Two passes over the list. The first costs about a second a model; the
+ *  second waits between attempts, and the deadline, not this number, is what
+ *  ends it. One pass gave up nine seconds into a thirty-five second budget. */
+const MAX_ATTEMPTS = 12;
 
 /**
  * Not every model accepts `thinkingConfig`, and the ones that refuse it answer
@@ -70,6 +89,12 @@ const rejectsThinkingConfig = new Set<string>();
 /** 0.6s, 1.2s, 2.4s, 4.8s … capped. Bounded by the deadline either way. */
 const backoff = (attempt: number) => Math.min(600 * 2 ** (attempt - 1), 5_000);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/** Wait only before going BACK to a model already asked. Moving on to a
+ *  different model needs no breather, and every sleep comes out of the same
+ *  budget the answer has to fit in: with the old unconditional backoff, four
+ *  quick 503s cost nine seconds of a thirty-five second extraction. */
+const pause = (attempt: number) =>
+  attempt >= MODELS.length ? sleep(backoff(attempt - MODELS.length + 1)) : Promise.resolve();
 
 /* ─────────────────────── schemas: generated, not retyped ─────────────────────── */
 
@@ -212,7 +237,7 @@ async function generate(
       const name = (e as Error)?.name ?? 'Error';
       console.error('gemini ' + model + ' attempt ' + attempt + ' failed:', name, String((e as Error)?.message).slice(0, 100));
       transient = new PipelineError('upstream_timeout', name);
-      if (attempt < MAX_ATTEMPTS && deadline - Date.now() > MIN_ATTEMPT_MS) { await sleep(backoff(attempt)); continue; }
+      if (attempt < MAX_ATTEMPTS && deadline - Date.now() > MIN_ATTEMPT_MS) { await pause(attempt); continue; }
       throw transient;
     }
 
@@ -222,7 +247,7 @@ async function generate(
       // attempt only — no prompt, no document text.
       console.error('gemini ' + res.status + ' from ' + model + ' (attempt ' + attempt + '/' + MAX_ATTEMPTS + ')');
       transient = new PipelineError(res.status === 429 ? 'rate_limited' : 'upstream_timeout');
-      if (attempt < MAX_ATTEMPTS && deadline - Date.now() > MIN_ATTEMPT_MS) { await sleep(backoff(attempt)); continue; }
+      if (attempt < MAX_ATTEMPTS && deadline - Date.now() > MIN_ATTEMPT_MS) { await pause(attempt); continue; }
       throw transient;
     }
 
@@ -232,11 +257,26 @@ async function generate(
       // users" — which is a one-line fix once you can read it.
       const detail = await res.text().catch(() => '');
 
+      // A model retired under us is not a failed document. 2.5-flash went this
+      // way: 404 "no longer available to new users" while still in the key's
+      // own listing. Move on to the next model; only a list with nothing left
+      // in it fails the run.
+      if (res.status === 404) {
+        console.error('gemini 404 from ' + model + ' (attempt ' + attempt + '/' + MAX_ATTEMPTS + ')');
+        transient = new PipelineError('internal', 'gemini ' + model + ' is not available');
+        continue;
+      }
+
       // The model rejects thinkingConfig. Drop it and try once more, rather
       // than failing a document over a field we only sent as an optimisation.
       if (res.status === 400 && sendThinkingConfig) {
         rejectsThinkingConfig.add(model);
         console.error('gemini ' + model + ' rejected thinkingConfig; retrying without it');
+        // The SAME model, and the attempt does not count: it answered, so it
+        // has capacity. A bare `continue` moved to the next model and never
+        // asked the one that had just proved it was up. Cannot loop, because
+        // the model is now in rejectsThinkingConfig.
+        attempt--;
         continue;
       }
 
