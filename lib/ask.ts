@@ -22,11 +22,18 @@ import { clauseLabel } from '@/lib/clause';
 
 /* ───────────────────────── escalation ───────────────────────── */
 
-const ESCALATE_TERMS = [
-  'arrest', 'arrested', 'police', 'fir', 'summons', 'court date', 'hearing',
-  'bailable', 'warrant', 'minor', 'under 18', 'underage',
-  'today', 'tomorrow', '24 hours', '48 hours', '72 hours',
-];
+/**
+ * Whole words, plural allowed. Matched as substrings, "fir" (a First
+ * Information Report) was found in firm, first, fired and confirm, and
+ * "warrant" in warranty, so "Can they fire me?" was told to call legal aid
+ * before reading on. "should i" likewise caught "should it".
+ *
+ * Literals, not a pattern assembled at runtime: it is fixed at build time so
+ * no input can reach it, and every alternative is a plain phrase, so there is
+ * nothing for a crafted question to backtrack over.
+ */
+const ESCALATES =
+  /\b(arrest|arrested|police|fir|summons|court date|hearing|bailable|warrant|minor|under 18|underage|today|tomorrow|24 hours|48 hours|72 hours)s?\b/;
 
 const CONTACTS = [
   { name: 'NALSA (National Legal Services Authority)', detail: 'Toll-free 15100 — free legal aid, every State and district' },
@@ -36,22 +43,9 @@ const CONTACTS = [
 
 /* ───────────────────────── advice ───────────────────────── */
 
-const ADVICE_TERMS = [
-  'should i', 'shall i', 'must i', 'do i have to', 'will i win', 'can i win',
-  'will they', 'can they enforce', 'is this enforceable', 'is it enforceable',
-  'am i safe', 'what are my chances', 'will i lose', 'should we', 'advise me',
-  'what would you do', 'is it legal', 'can they sue', 'will i be sued',
-];
-
-/**
- * Whole words, plural allowed. Matched as substrings, "fir" (a First
- * Information Report) was found in firm, first, fired and confirm, and
- * "warrant" in warranty, so "Can they fire me?" was told to call legal aid
- * before reading on. "should i" likewise caught "should it".
- */
-const anyOf = (list: string[]) => new RegExp('\\b(' + list.join('|') + ')s?\\b');
-const ESCALATES = anyOf(ESCALATE_TERMS);
-const ADVISES = anyOf(ADVICE_TERMS);
+/** Same rule as ESCALATES: whole words, a fixed literal. */
+const ADVISES =
+  /\b(should i|shall i|must i|do i have to|will i win|can i win|will they|can they enforce|is this enforceable|is it enforceable|am i safe|what are my chances|will i lose|should we|advise me|what would you do|is it legal|can they sue|will i be sued)s?\b/;
 
 /* ───────────────────────── retrieval ───────────────────────── */
 
@@ -257,7 +251,7 @@ export function seedQuestions(analysis: AnalysisPayload): string[] {
     if (out.length === 3) break;
   }
 
-  // Worded to stay clear of ADVICE_TERMS. It was "What notice do I have to
+  // Worded to stay clear of ADVISES. It was "What notice do I have to
   // give?", and "do i have to" got the screen's own suggestion answered with
   // "What I cannot tell you is what you should do".
   if (out.length < 3) out.push('What is my notice period?');
