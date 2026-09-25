@@ -63,6 +63,22 @@ const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/';
  *  caller passes, and the caller is the one that knows how much of it this
  *  particular call is allowed to spend. */
 const CALL_TIMEOUT_MS = 40_000;
+
+/**
+ * A SLOW model is the trap a 503 is not. A 503 comes back in a second and the
+ * loop moves on; a model that is up but queueing holds the request until the
+ * whole budget is gone, while the next model in the list would have answered
+ * in two seconds. Measured on 2026-09-25: 3.5-flash took 25s to say "ok"
+ * while flash-lite-latest took 1.6s, and a three-clause contract that had
+ * finished in 18s timed out at ninety.
+ *
+ * So the first pass gives each model a short leash, scaled to the prompt: a
+ * healthy model reads a short contract in under ten seconds, and a long one
+ * earns a second per 2,000 characters. The second pass allows the full ceiling,
+ * so a long document on a slow day is still read rather than cut short.
+ */
+const attemptCeiling = (attempt: number, prompt: string) =>
+  attempt <= MODELS.length ? Math.min(CALL_TIMEOUT_MS, 15_000 + Math.ceil(prompt.length / 2_000) * 1_000) : CALL_TIMEOUT_MS;
 /** Below this there is no point starting another attempt. */
 const MIN_ATTEMPT_MS = 4_000;
 
@@ -212,7 +228,7 @@ async function generate(
       res = await fetch(ENDPOINT + model + ':generateContent', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
-        signal: AbortSignal.timeout(Math.min(CALL_TIMEOUT_MS, remaining)),
+        signal: AbortSignal.timeout(Math.min(attemptCeiling(attempt, prompt), remaining)),
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           generationConfig: {
